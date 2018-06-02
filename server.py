@@ -51,8 +51,6 @@ class CachingDNSServer:
 
     def try_get_from_cache(self, query):
         parsed_query = dnslib.DNSRecord.parse(query)
-        if parsed_query.q.qtype != 1 and parsed_query.q.qtype != 2:
-            return
         # print(self.cache[0][1].rtype)
         # print(parsed_query.q.qtype)
         entries = [entry for entry in self.cache if entry[0] == str(parsed_query.q.qname)
@@ -97,10 +95,10 @@ if __name__ == '__main__':
     dns = CachingDNSServer(forward_dns)
     try:
         dns.start()
+        print("сервер запущен")
     except KeyboardInterrupt:
         print("KeyboardInterrupt")
         with open(cache_filename, 'wb') as f:
             pickle.dump(dns.cache, f)
         print(dns.cache)
         print("кеш сохранен в " + cache_filename)
-

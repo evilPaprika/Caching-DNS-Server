@@ -2,7 +2,6 @@ import configparser
 import socket
 import time
 from threading import Thread
-
 import dnslib
 import pickle
 import itertools
@@ -54,16 +53,19 @@ class CachingDNSServer:
         parsed_query = dnslib.DNSRecord.parse(query)
         if parsed_query.q.qtype != 1 and parsed_query.q.qtype != 2:
             return
-        entries = [entry for entry in self.cache if entry[0] == str(parsed_query.q.qname)]
+        # print(self.cache[0][1].rtype)
+        # print(parsed_query.q.qtype)
+        entries = [entry for entry in self.cache if entry[0] == str(parsed_query.q.qname)
+                   and entry[1].rtype == parsed_query.q.qtype
+                   and entry[2] > time.time()]
         print(entries)
         if not entries:
             return
         answer = dnslib.DNSRecord(q=parsed_query.q, header=dnslib.DNSHeader(qr=1, id=parsed_query.header.id))
         for entry in entries:
-            if entry[2] > time.time():
-                answer.add_answer(dnslib.RR(rname=entry[1].rname,rtype=entry[1].rtype,
-                                            rclass=entry[1].rclass, rdata=entry[1].rdata,
-                                            ttl=int(entry[2]-time.time())))
+            answer.add_answer(dnslib.RR(rname=entry[1].rname, rtype=entry[1].rtype,
+                                        rclass=entry[1].rclass, rdata=entry[1].rdata,
+                                        ttl=int(entry[2]-time.time())))
         print(repr(answer))
         return bytes(answer.pack())
 
@@ -74,8 +76,16 @@ class CachingDNSServer:
             self.cache.append((str(record.get_rname()), record, time.time() + record.ttl))
 
     def filter_cache(self, delay):
+        """
+        удаляет записи с истекшим ттл
+        :param delay:
+        :return:
+        """
         while True:
             time.sleep(delay)
+            for entry in self.cache[:]:
+                if entry[2] < time.time():
+                    self.cache.remove(entry)
 
 
 if __name__ == '__main__':
